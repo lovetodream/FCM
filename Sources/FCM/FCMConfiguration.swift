@@ -5,8 +5,6 @@ public struct FCMConfiguration: Sendable {
     let email: String
     let projectId: String
     let key: String
-    let serverKey: String
-    let senderId: String
 
     // MARK: Default configurations
     
@@ -16,29 +14,23 @@ public struct FCMConfiguration: Sendable {
 
     // MARK: Initializers
     
-    public init (email: String, projectId: String, key: String, serverKey: String, senderId: String) {
+    public init (email: String, projectId: String, key: String) {
         self.email = email
         self.projectId = projectId
         self.key = key
-        self.serverKey = serverKey
-        self.senderId = senderId
     }
     
-    public init (email: String, projectId: String, keyPath: String, serverKey: String, senderId: String) async throws {
+    public init(email: String, projectId: String, keyPath: String) async throws {
         self.email = email
         self.projectId = projectId
         self.key = try await Self.readKey(from: keyPath)
-        self.serverKey = serverKey
-        self.senderId = senderId
     }
     
-    public init (pathToServiceAccountKey path: String) async throws {
+    public init(pathToServiceAccountKey path: String) async throws {
         let s = try await Self.readServiceAccount(at: path)
         self.email = s.client_email
         self.projectId = s.project_id
         self.key = s.private_key
-        self.serverKey = s.server_key
-        self.senderId = s.sender_id
     }
 
     // MARK: Helpers
@@ -55,7 +47,6 @@ public struct FCMConfiguration: Sendable {
     
     private struct ServiceAccount: Codable {
         let project_id, private_key, client_email: String
-        let server_key, sender_id: String
     }
     
     private static func readServiceAccount(at path: String) async throws -> ServiceAccount {

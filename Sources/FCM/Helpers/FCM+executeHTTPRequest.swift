@@ -9,11 +9,11 @@ extension FCMClient {
         with jsonPayload: some Encodable,
         headers: HTTPHeaders? = nil
     ) async throws -> HTTPClientResponse {
-        let _ = try await getAccessToken()
+        let accessToken = try await getAccessToken()
 
         var request = HTTPClientRequest(url: url)
         request.headers = headers ?? [
-            "Authorization": "key=\(configuration.serverKey)",
+            "Authorization": "Bearer \(accessToken)",
             "Content-Type": "application/json"
         ]
         request.method = .POST
@@ -42,10 +42,10 @@ extension FCMClient {
         url: String,
         headers: HTTPHeaders? = nil
     ) async throws -> T {
-        let _ = try await getAccessToken()
+        let accessToken = try await getAccessToken()
 
         var request = HTTPClientRequest(url: url)
-        request.headers = headers ?? ["Authorization": "key=\(configuration.serverKey)"]
+        request.headers = headers ?? ["Authorization": "Bearer \(accessToken)"]
         request.method = .GET
 
         let response = try await httpClient.execute(request, timeout: .seconds(30))
