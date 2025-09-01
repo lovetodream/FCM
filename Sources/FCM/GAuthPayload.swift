@@ -1,5 +1,4 @@
-import JWT
-import Foundation
+import JWTKit
 
 struct GAuthPayload: JWTPayload {
     let uid: String
@@ -12,13 +11,13 @@ struct GAuthPayload: JWTPayload {
     var aud: AudienceClaim
     
     static var expirationClaim: ExpirationClaim {
-        return ExpirationClaim(value: Date().addingTimeInterval(3600))
+        return ExpirationClaim(value: FCMDate.now.addingTimeInterval(3600))
     }
 
     init(iss: String, sub: String, scope: String, aud: String) {
-        self.uid = UUID().uuidString
+        self.uid = FCMUUID().uuidString
         self.exp = GAuthPayload.expirationClaim
-        self.iat = IssuedAtClaim(value: Date())
+        self.iat = IssuedAtClaim(value: .now)
         self.iss = IssuerClaim(value: iss)
         self.sub = SubjectClaim(value: sub)
         self.scope = scope
@@ -26,9 +25,9 @@ struct GAuthPayload: JWTPayload {
     }
     
     private init(iss: IssuerClaim, sub: SubjectClaim, scope: String, aud: AudienceClaim) {
-        self.uid = UUID().uuidString
+        self.uid = FCMUUID().uuidString
         self.exp = GAuthPayload.expirationClaim
-        self.iat = IssuedAtClaim(value: Date())
+        self.iat = IssuedAtClaim(value: .now)
         self.iss = iss
         self.sub = sub
         self.scope = scope

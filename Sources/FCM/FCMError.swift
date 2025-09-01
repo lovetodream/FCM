@@ -1,5 +1,3 @@
-import Vapor
-
 public struct GoogleError: Error, Decodable {
     public let code: Int
     public let message: String
@@ -25,6 +23,10 @@ public struct GoogleError: Error, Decodable {
         var details = try container.nestedUnkeyedContainer(forKey: .details)
         fcmError = try? details.decode(FCMError.self)
     }
+
+    public struct Raw: Error {
+        let message: String
+    }
 }
 
 public struct FCMError: Error, Decodable {
@@ -39,17 +41,5 @@ public struct FCMError: Error, Decodable {
         case apnsAuth = "APNS_AUTH_ERROR"
         case unavailable = "UNAVAILABLE"
         case `internal` = "INTERNAL"
-    }
-}
-
-extension ClientResponse {
-    func validate() throws {
-        guard 200 ..< 300 ~= self.status.code else {
-            if let error = try? self.content.decode(GoogleError.self) {
-                throw error
-            }
-            let body = self.body.map(String.init) ?? ""
-            throw Abort(.internalServerError, reason: "FCM: Unexpected error '\(body)'")
-        }
     }
 }

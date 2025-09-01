@@ -1,5 +1,3 @@
-import Foundation
-
 public typealias FCMMessageDefault = FCMMessage<FCMApnsPayload>
 
 public struct FCMMessage<APNSPayload>: Sendable, Codable where APNSPayload: FCMApnsPayloadProtocol {
@@ -49,7 +47,7 @@ public struct FCMMessage<APNSPayload>: Sendable, Codable where APNSPayload: FCMA
         self.token = token
         self.notification = notification
         self.data = data ?? [:]
-        self.name = name ?? UUID().uuidString
+        self.name = name ?? FCMUUID().uuidString
         self.android = android
         self.webpush = webpush
         self.apns = apns
@@ -68,7 +66,7 @@ public struct FCMMessage<APNSPayload>: Sendable, Codable where APNSPayload: FCMA
         self.topic = topic
         self.notification = notification
         self.data = data ?? [:]
-        self.name = name ?? UUID().uuidString
+        self.name = name ?? FCMUUID().uuidString
         self.android = android
         self.webpush = webpush
         self.apns = apns
@@ -88,7 +86,7 @@ public struct FCMMessage<APNSPayload>: Sendable, Codable where APNSPayload: FCMA
         self.condition = condition
         self.notification = notification
         self.data = data ?? [:]
-        self.name = name ?? UUID().uuidString
+        self.name = name ?? FCMUUID().uuidString
         self.android = android
         self.webpush = webpush
         self.apns = apns

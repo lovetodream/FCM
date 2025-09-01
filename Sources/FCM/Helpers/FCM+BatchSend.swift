@@ -1,15 +1,14 @@
-import Foundation
-import Vapor
+import AsyncHTTPClient
+import MultipartKit
+import NIOCore
+import NIOHTTP1
 
 extension FCM {
 
     private func _send(_ message: FCMMessageDefault, tokens: [String]) async throws -> [String] {
-        guard let configuration = self.configuration else {
-            fatalError("FCM not configured. Use app.fcm.configuration = ...")
-        }
 
-        let urlPath = URI(string: actionsBaseURL + configuration.projectId + "/messages:send").path
-        
+        let urlPath = "/v1/projects/" + configuration.projectId + "/messages:send"
+
         let accessToken = try await getAccessToken()
         
         var result = [String]()
@@ -32,7 +31,6 @@ extension FCM {
         urlPath: String,
         accessToken: String
     ) async throws -> [String] {
-        var body = ByteBufferAllocator().buffer(capacity: 0)
         let boundary = "subrequest_boundary"
 
         struct Payload: Encodable {
@@ -55,62 +53,58 @@ extension FCM {
                 notification: message.notification,
                 data: message.data,
                 name: message.name,
-                android: message.android ?? androidDefaultConfig,
-                webpush: message.webpush ?? webpushDefaultConfig,
-                apns: message.apns ?? apnsDefaultConfig
+                android: message.android ?? configuration.androidDefaultConfig,
+                webpush: message.webpush ?? configuration.webpushDefaultConfig,
+                apns: message.apns ?? configuration.apnsDefaultConfig
             )
 
             try partBody.writeJSONEncodable(Payload(message: message))
 
-            return MultipartPart(headers: ["Content-Type": "application/http"], body: partBody)
+            return MultipartPart(headerFields: [.contentType: "application/http"], body: partBody.readableBytesView)
         }
 
-        try MultipartSerializer().serialize(parts: parts, boundary: boundary, into: &body)
+        let body: ByteBufferView = MultipartSerializer(boundary: boundary).serialize(parts: parts)
 
-        var headers = HTTPHeaders()
-        headers.contentType = .init(type: "multipart", subType: "mixed", parameters: ["boundary": boundary])
-        headers.bearerAuthorization = .init(token: accessToken)
+        var request = HTTPClientRequest(url: Self.batchURL)
+        request.headers = [
+            "Content-Type": "multipart/mixed; boundary=\(boundary)",
+            "Authorization": "Bearer \(accessToken)"
+        ]
+        request.body = .bytes(body)
 
-        let response = try await self.client
-            .post(URI(string: batchURL), headers: headers) { req in
-                req.body = body
-            }
-        
-        try response.validate()
+        let response = try await self.httpClient.execute(request, timeout: .seconds(30))
+        try await response.validate()
 
         guard
-            let boundary = response.headers.contentType?.parameters["boundary"]
+            let boundary = response.headers.getParameter("Content-Type", "boundary")
         else {
-            throw Abort(.internalServerError, reason: "FCM: Missing \"boundary\" in batch response headers")
-        }
-        guard
-            let body = response.body
-        else {
-            throw Abort(.internalServerError, reason: "FCM: Missing response body from batch operation")
+            throw BatchResponseError.missingBoundary
         }
 
+        let responseBody = try await response.body.collect(upTo: 2 * 1024 * 1024)
         struct Result: Decodable {
             let name: String
         }
 
-        let jsonDecoder = JSONDecoder()
-        var result: [String] = []
-
-        let parser = MultipartParser(boundary: boundary)
-        parser.onBody = { body in
+        let parser: MultipartParser<ByteBufferView> = MultipartParser(boundary: boundary)
+        let result = try parser.parse(responseBody.readableBytesView).compactMap { part in
+            var body = ByteBuffer(part.body)
             let bytes = body.readableBytesView
             if let indexOfBodyStart = bytes.firstIndex(of: 0x7B) /* '{' */ {
                 body.moveReaderIndex(to: indexOfBodyStart)
-                if let name = try? jsonDecoder.decode(Result.self, from: body).name {
-                    result.append(name)
+                if let name = try? body.readJSONDecodable(Result.self, length: body.readableBytes)?.name {
+                    return name
                 }
             }
+            return nil
         }
-
-        try parser.execute(body)
 
         return result
     }
+}
+
+enum BatchResponseError: Error {
+    case missingBoundary
 }
 
 private extension Collection where Index == Int {

@@ -1,5 +1,3 @@
-import Foundation
-
 public struct FCMApnsConfig<P>: Sendable, Codable where P: FCMApnsPayloadProtocol & Sendable {
     /// HTTP request headers defined in Apple Push Notification Service.
     /// Refer to APNs request headers for supported headers, e.g. "apns-priority": "10".

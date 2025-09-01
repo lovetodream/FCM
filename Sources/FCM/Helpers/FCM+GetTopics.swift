@@ -1,22 +1,10 @@
-import Foundation
-import Vapor
+import AsyncHTTPClient
+
 
 extension FCM {
-    public func getTopics(token: String, on eventLoop: EventLoop) async throws -> [String] {
-        guard let configuration = self.configuration else {
-            fatalError("FCM not configured. Use app.fcm.configuration = ...")
-        }
-        guard let serverKey = configuration.serverKey else {
-            fatalError("FCM: GetTopics: Server Key is missing.")
-        }
-        let url = self.iidURL + "info/\(token)?details=true"
-        
-        let _ = try await getAccessToken()
-        var headers = HTTPHeaders()
-        headers.add(name: .authorization, value: "key=\(serverKey)")
+    public func getTopics(token: String) async throws -> [String] {
+        let url = Self.iidURL + "info/\(token)?details=true"
 
-        let response = try await self.client.get(URI(string: url), headers: headers)
-        
         struct Result: Codable {
             let rel: Relations
 
@@ -28,7 +16,7 @@ extension FCM {
                 let addDate: String
             }
         }
-        let result = try response.content.decode(Result.self, using: JSONDecoder())
+        let result: Result = try await executeHTTPRequest(url: url)
         return Array(result.rel.topics.keys)
     }
 }

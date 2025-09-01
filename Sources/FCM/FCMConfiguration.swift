@@ -1,10 +1,13 @@
-import Foundation
-import Vapor
+import NIOCore
+import NIOFileSystem
 
 public struct FCMConfiguration: Sendable {
-    let email, projectId, key: String
-    let serverKey, senderId: String?
-    
+    let email: String
+    let projectId: String
+    let key: String
+    let serverKey: String
+    let senderId: String
+
     // MARK: Default configurations
     
     public var apnsDefaultConfig: FCMApnsConfig<FCMApnsPayload>?
@@ -13,118 +16,56 @@ public struct FCMConfiguration: Sendable {
 
     // MARK: Initializers
     
-    public init (email: String, projectId: String, key: String, serverKey: String? = nil, senderId: String? = nil) {
+    public init (email: String, projectId: String, key: String, serverKey: String, senderId: String) {
         self.email = email
         self.projectId = projectId
         self.key = key
-        self.serverKey = serverKey ?? Environment.get("FCM_SERVER_KEY")
-        self.senderId = senderId ?? Environment.get("FCM_SENDER_ID")
+        self.serverKey = serverKey
+        self.senderId = senderId
     }
     
-    public init (email: String, projectId: String, keyPath: String, serverKey: String? = nil, senderId: String? = nil) {
+    public init (email: String, projectId: String, keyPath: String, serverKey: String, senderId: String) async throws {
         self.email = email
         self.projectId = projectId
-        self.key = Self.readKey(from: keyPath)
-        self.serverKey = serverKey ?? Environment.get("FCM_SERVER_KEY")
-        self.senderId = senderId ?? Environment.get("FCM_SENDER_ID")
+        self.key = try await Self.readKey(from: keyPath)
+        self.serverKey = serverKey
+        self.senderId = senderId
     }
     
-    public init (pathToServiceAccountKey path: String) {
-        let s = Self.readServiceAccount(at: path)
+    public init (pathToServiceAccountKey path: String) async throws {
+        let s = try await Self.readServiceAccount(at: path)
         self.email = s.client_email
         self.projectId = s.project_id
         self.key = s.private_key
-        self.serverKey = s.server_key ?? Environment.get("FCM_SERVER_KEY")
-        self.senderId = s.sender_id ?? Environment.get("FCM_SENDER_ID")
+        self.serverKey = s.server_key
+        self.senderId = s.sender_id
     }
-    
-    public init (fromJSON json: String) {
-        let s = Self.parseServiceAccount(from: json)
-        self.email = s.client_email
-        self.projectId = s.project_id
-        self.key = s.private_key
-        self.serverKey = s.server_key ?? Environment.get("FCM_SERVER_KEY")
-        self.senderId = s.sender_id ?? Environment.get("FCM_SENDER_ID")
-    }
-    
-    // MARK: Static initializers
-    
-    /// It will try to read
-    /// - FCM_EMAIL
-    /// - FCM_PROJECT_ID
-    /// - FCM_KEY_PATH
-    /// credentials from environment variables
-    public static var envCredentials: FCMConfiguration {
-        guard
-            let email = Environment.get("FCM_EMAIL"),
-            let projectId = Environment.get("FCM_PROJECT_ID"),
-            let keyPath = Environment.get("FCM_KEY_PATH")
-        else {
-            fatalError("FCM envCredentials not set")
-        }
-        let serverKey = Environment.get("FCM_SERVER_KEY")
-        let senderId = Environment.get("FCM_SENDER_ID")
-        return .init(email: email, projectId: projectId, keyPath: keyPath, serverKey: serverKey, senderId: senderId)
-    }
-    
-    /// It will try to read path to service account key from environment variables
-    public static var envServiceAccountKey: FCMConfiguration {
-        if let path = Environment.get("FCM_SERVICE_ACCOUNT_KEY_PATH") {
-            return .init(pathToServiceAccountKey: path)
-        } else if let jsonString = Environment.get("FCM_SERVICE_ACCOUNT_KEY") {
-            return .init(fromJSON: jsonString)
-        } else { fatalError("FCM envServiceAccountKey not set") }
-    }
-    
-    /// It will try to read
-    /// - FCM_EMAIL - client_email
-    /// - FCM_PROJECT_ID - project_id
-    /// - FCM_PRIVATE_KEY - private_key
-    /// credentials from environment variables
-    public static var envServiceAccountKeyFields: FCMConfiguration {
-        guard
-            let email = Environment.get("FCM_EMAIL"),
-            let projectId = Environment.get("FCM_PROJECT_ID"),
-            let rawPrivateKey = Environment.get("FCM_PRIVATE_KEY")
-        else {
-            fatalError("FCM envCredentials not set")
-        }
-        return .init(email: email, projectId: projectId, key: rawPrivateKey.replacingOccurrences(of: "\\n", with: "\n"))
-    }
-    
+
     // MARK: Helpers
     
-    private static func readKey(from path: String) -> String {
-        let fm = FileManager.default
-        guard let data = fm.contents(atPath: path) else {
-            fatalError("FCM pem key file doesn't exists")
+    private static func readKey(from path: String) async throws -> String {
+        try await FileSystem.shared.withFileHandle(forReadingAt: .init(path)) { read in
+            var key = ""
+            for try await var chunk in read.readChunks() {
+                key += chunk.readString(length: chunk.readableBytes).unsafelyUnwrapped
+            }
+            return key
         }
-        guard let key = String(data: data, encoding: .utf8) else {
-            fatalError("FCM unable to decode key file content")
-        }
-        return key
     }
     
     private struct ServiceAccount: Codable {
         let project_id, private_key, client_email: String
-        let server_key, sender_id: String?
+        let server_key, sender_id: String
     }
     
-    private static func readServiceAccount(at path: String) -> ServiceAccount {
-        let fm = FileManager.default
-        guard let data = fm.contents(atPath: path) else {
-            fatalError("FCM serviceAccount file doesn't exists at path: \(path)")
+    private static func readServiceAccount(at path: String) async throws -> ServiceAccount {
+        try await FileSystem.shared.withFileHandle(forReadingAt: .init(path)) { read in
+            let size = try await read.info().size
+            var buffer = ByteBufferAllocator().buffer(capacity: numericCast(size))
+            for try await var chunk in read.readChunks() {
+                buffer.writeBuffer(&chunk)
+            }
+            return try buffer.readJSONDecodable(ServiceAccount.self, length: buffer.readableBytes).unsafelyUnwrapped
         }
-        guard let serviceAccount = try? JSONDecoder().decode(ServiceAccount.self, from: data) else {
-            fatalError("FCM unable to decode serviceAccount from file located at: \(path)")
-        }
-        return serviceAccount
-    }
-    
-    private static func parseServiceAccount(from json: String) -> ServiceAccount {
-        guard let data = json.data(using: .utf8), let serviceAccount = try? JSONDecoder().decode(ServiceAccount.self, from: data) else {
-            fatalError("FCM unable to decode serviceAccount from json string: \(json)")
-        }
-        return serviceAccount
     }
 }

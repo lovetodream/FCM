@@ -1,24 +1,22 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 import PackageDescription
 
 let package = Package(
     name: "FCM",
-    platforms: [
-       .macOS(.v13)
-    ],
+    platforms: [.macOS(.v15)],
     products: [
-        // Vapor client for Firebase Cloud Messaging
         .library(name: "FCM", targets: ["FCM"]),
     ],
     dependencies: [
-        // 💧 A server-side Swift web framework.
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
-        .package(url: "https://github.com/vapor/jwt.git", from: "5.0.0"),
+        .package(url: "https://github.com/vapor/jwt-kit.git", from: "5.1.2"),
+        .package(url: "https://github.com/vapor/multipart-kit.git", from: "5.0.0-alpha"),
+        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.27.0"),
     ],
     targets: [
         .target(name: "FCM", dependencies: [
-            .product(name: "Vapor", package: "vapor"),
-            .product(name: "JWT", package: "jwt"),
+            .product(name: "JWTKit", package: "jwt-kit"),
+            .product(name: "MultipartKit", package: "multipart-kit"),
+            .product(name: "AsyncHTTPClient", package: "async-http-client"),
         ]),
         .testTarget(name: "FCMTests", dependencies: [
             .target(name: "FCM"),

@@ -1,5 +1,5 @@
-import Foundation
-import Vapor
+import AsyncHTTPClient
+import NIOCore
 
 extension FCM {
     public func deleteTopic(_ name: String, tokens: String...) async throws {
@@ -11,33 +11,18 @@ extension FCM {
     }
 
     private func _deleteTopic(_ name: String, tokens: [String]) async throws {
-        guard let configuration = self.configuration else {
-            fatalError("FCM not configured. Use app.fcm.configuration = ...")
-        }
-        guard let serverKey = configuration.serverKey else {
-            fatalError("FCM: DeleteTopic: Server Key is missing.")
-        }
-        
-        let _ = try await getAccessToken()
-        var headers = HTTPHeaders()
-        headers.add(name: .authorization, value: "key=\(serverKey)")
-        
-        let url = self.iidURL + "batchRemove"
-        
-        let response = try await self.client.post(URI(string: url), headers: headers) { (req) in
-            struct Payload: Content {
-                let to: String
-                let registration_tokens: [String]
-                
-                init(to: String, registration_tokens: [String]) {
-                    self.to = "/topics/\(to)"
-                    self.registration_tokens = registration_tokens
-                }
+        let url = Self.iidURL + "batchRemove"
+
+        struct Payload: Encodable {
+            let to: String
+            let registration_tokens: [String]
+
+            init(to: String, registration_tokens: [String]) {
+                self.to = "/topics/\(to)"
+                self.registration_tokens = registration_tokens
             }
-            let payload = Payload(to: name, registration_tokens: tokens)
-            try req.content.encode(payload)
         }
-        
-        try response.validate()
+        let payload = Payload(to: name, registration_tokens: tokens)
+        try await executeHTTPRequest(url: url, with: payload)
     }
 }
