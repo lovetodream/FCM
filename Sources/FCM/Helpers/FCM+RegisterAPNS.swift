@@ -5,7 +5,7 @@ public struct APNSToFirebaseToken {
     public let isRegistered: Bool
 }
 
-extension FCM {
+extension FCMClient {
     /// Helper method which registers your pure APNS token in Firebase Cloud Messaging
     /// and returns firebase tokens for each APNS token
     public func registerAPNS(

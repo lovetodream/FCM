@@ -2,7 +2,7 @@ import AsyncHTTPClient
 import NIOCore
 import NIOHTTP1
 
-extension FCM {
+extension FCMClient {
     @discardableResult
     func executeHTTPRequest(
         url: String,

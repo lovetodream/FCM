@@ -1,9 +1,11 @@
 import AsyncHTTPClient
 import NIOCore
+import Synchronization
+import JWTKit
 
 // MARK: Engine
 
-public final class FCM: @unchecked Sendable { // TODO: REMOVE UNCHECKED
+public final class FCMClient: Sendable {
 
     let httpClient: HTTPClient
 
@@ -17,16 +19,26 @@ public final class FCM: @unchecked Sendable { // TODO: REMOVE UNCHECKED
 
     public let configuration: FCMConfiguration
 
-    var gAuth: GAuthPayload // TODO: might be let?
-    var jwt: String
-    var accessToken: String?
+    let gAuth: Mutex<GAuthPayload>
+    let jwt: Mutex<String>
+    let accessToken: Mutex<String?> = Mutex(nil)
+
+    let keys: JWTKeyCollection
 
     public init(httpClient: HTTPClient, configuration: FCMConfiguration) async throws {
         self.httpClient = httpClient
         self.configuration = configuration
-        self.gAuth = GAuthPayload(iss: configuration.email, sub: configuration.email, scope: Self.scope, aud: Self.audience)
-        self.jwt = ""
-        self.jwt = try await generateJWT()
+        self.gAuth = Mutex(GAuthPayload(iss: configuration.email, sub: configuration.email, scope: Self.scope, aud: Self.audience))
+        guard let pemData = configuration.key.data(using: .utf8) else {
+            fatalError("FCM unable to prepare PEM data for JWT")
+        }
+        let pk = try Insecure.RSA.PrivateKey(pem: pemData)
+        self.keys = await JWTKeyCollection().add(rsa: pk, digestAlgorithm: .sha256)
+        self.jwt = Mutex("")
+        let jwt = try await generateJWT()
+        self.jwt.withLock {
+            $0 = jwt
+        }
     }
 }
 

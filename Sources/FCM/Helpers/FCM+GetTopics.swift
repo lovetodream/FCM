@@ -1,7 +1,6 @@
 import AsyncHTTPClient
 
-
-extension FCM {
+extension FCMClient {
     public func getTopics(token: String) async throws -> [String] {
         let url = Self.iidURL + "info/\(token)?details=true"
 

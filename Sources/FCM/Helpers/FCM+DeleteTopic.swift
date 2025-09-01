@@ -1,7 +1,7 @@
 import AsyncHTTPClient
 import NIOCore
 
-extension FCM {
+extension FCMClient {
     public func deleteTopic(_ name: String, tokens: String...) async throws {
         try await deleteTopic(name, tokens: tokens)
     }

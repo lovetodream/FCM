@@ -3,7 +3,7 @@ import MultipartKit
 import NIOCore
 import NIOHTTP1
 
-extension FCM {
+extension FCMClient {
 
     private func _send(_ message: FCMMessageDefault, tokens: [String]) async throws -> [String] {
 

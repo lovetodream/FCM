@@ -1,7 +1,7 @@
 import AsyncHTTPClient
 import NIOCore
 
-extension FCM {
+extension FCMClient {
     public func createTopic(_ name: String? = nil, tokens: [String]) async throws -> String {
         try await _createTopic(name, tokens: tokens)
     }

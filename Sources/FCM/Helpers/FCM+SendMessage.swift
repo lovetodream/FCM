@@ -1,4 +1,4 @@
-extension FCM {
+extension FCMClient {
     public func send(_ message: FCMMessageDefault) async throws -> String {
         try await _send(message)
     }

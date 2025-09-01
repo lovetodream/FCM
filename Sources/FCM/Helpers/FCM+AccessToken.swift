@@ -1,9 +1,9 @@
 import AsyncHTTPClient
 import NIOCore
 
-extension FCM {
+extension FCMClient {
     func getAccessToken() async throws -> String {
-        if !gAuth.hasExpired, let token = accessToken {
+        if !gAuth.withLock({ $0.hasExpired }), let token = accessToken.withLock({ $0 }) {
             return token
         }
         
@@ -27,7 +27,7 @@ extension FCM {
         guard let result else {
             throw AccessTokenError.missingToken
         }
-        self.accessToken = result.access_token
+        self.accessToken.withLock { $0 = result.access_token }
         return result.access_token
     }
 }

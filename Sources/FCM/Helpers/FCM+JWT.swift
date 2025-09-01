@@ -1,22 +1,17 @@
 import JWTKit
 
-extension FCM {
+extension FCMClient {
     func generateJWT() async throws -> String {
-        guard let pemData = configuration.key.data(using: .utf8) else {
-            fatalError("FCM unable to prepare PEM data for JWT")
-        }
-        self.gAuth = self.gAuth.updated() // TODO: just changes id, do this some other way?
-        let pk = try Insecure.RSA.PrivateKey(pem: pemData)
-        let keys = await JWTKeyCollection().add(rsa: pk, digestAlgorithm: .sha256)
-        return try await keys.sign(gAuth)
+        self.gAuth.withLock { $0 = $0.updated() }
+        return try await self.keys.sign(gAuth.withLock { $0 })
     }
     
     func getJWT() async throws -> String {
-        if !gAuth.hasExpired {
-            return jwt
+        if !gAuth.withLock({ $0.hasExpired }) {
+            return jwt.withLock { $0 }
         }
         let jwt = try await generateJWT()
-        self.jwt = jwt
+        self.jwt.withLock { $0 = jwt }
         return jwt
     }
 }
