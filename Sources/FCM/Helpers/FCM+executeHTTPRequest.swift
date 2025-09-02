@@ -9,14 +9,19 @@ extension FCMClient {
         with jsonPayload: some Encodable,
         headers: HTTPHeaders? = nil
     ) async throws -> HTTPClientResponse {
-        let accessToken = try await getAccessToken()
-
         var request = HTTPClientRequest(url: url)
-        request.headers = headers ?? [
-            "Authorization": "Bearer \(accessToken)",
-            "Content-Type": "application/json"
-        ]
         request.method = .POST
+
+        if let headers {
+            request.headers = headers
+        } else {
+            let accessToken = try await getAccessToken()
+            request.headers = [
+                "Authorization": "Bearer \(accessToken)",
+                "Content-Type": "application/json"
+            ]
+        }
+
         var buffer = ByteBuffer()
         try buffer.writeJSONEncodable(jsonPayload)
         request.body = .bytes(buffer)
