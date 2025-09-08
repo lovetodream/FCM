@@ -33,10 +33,7 @@ public final class FCMClient: Sendable {
         let pk = try Insecure.RSA.PrivateKey(pem: pemData)
         self.keys = await JWTKeyCollection().add(rsa: pk, digestAlgorithm: .sha256)
         self.jwt = Mutex("")
-        let jwt = try await generateJWT()
-        self.jwt.withLock {
-            $0 = jwt
-        }
+        _ = try await generateJWT()
     }
 }
 

@@ -3,11 +3,11 @@ import NIOCore
 
 extension FCMClient {
     func getAccessToken() async throws -> String {
-        if !gAuth.withLock({ $0.hasExpired }), let token = accessToken.withLock({ $0 }) {
+        if gAuth.withLock({ !$0.hasExpired }), let token = accessToken.withLock({ $0 }) {
             return token
         }
         
-        let jwt = try await self.getJWT()
+        let jwt = try await self.generateJWT()
 
         let response = try await executeHTTPRequest(
             url: Self.audience,
