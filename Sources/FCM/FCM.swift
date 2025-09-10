@@ -18,22 +18,27 @@ public final class FCMClient: Sendable {
     public let configuration: FCMConfiguration
 
     let gAuth: Mutex<GAuthPayload>
-    let jwt: Mutex<String>
     let accessToken: Mutex<String?> = Mutex(nil)
 
     let keys: JWTKeyCollection
 
-    public init(httpClient: HTTPClient, configuration: FCMConfiguration) async throws {
+    public convenience init(httpClient: HTTPClient, configuration: FCMConfiguration) async throws {
+        try await self.init(_httpClient: httpClient, _configuration: configuration)
+
+    }
+
+    init(_httpClient httpClient: HTTPClient, _configuration configuration: FCMConfiguration) async throws {
         self.httpClient = httpClient
         self.configuration = configuration
-        self.gAuth = Mutex(GAuthPayload(iss: configuration.email, sub: configuration.email, scope: Self.scope, aud: Self.audience))
-        guard let pemData = configuration.key.data(using: .utf8) else {
-            fatalError("FCM unable to prepare PEM data for JWT")
-        }
-        let pk = try Insecure.RSA.PrivateKey(pem: pemData)
+        self.gAuth = Mutex(GAuthPayload(
+            iss: .init(value: configuration.email),
+            sub: .init(value: configuration.email),
+            scope: Self.scope,
+            aud: .init(value: Self.audience),
+            iat: .distantPast
+        ))
+        let pk = try Insecure.RSA.PrivateKey(pem: .init(configuration.key.utf8))
         self.keys = await JWTKeyCollection().add(rsa: pk, digestAlgorithm: .sha256)
-        self.jwt = Mutex("")
-        _ = try await generateJWT()
     }
 }
 

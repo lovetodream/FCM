@@ -10,24 +10,10 @@ struct GAuthPayload: JWTPayload {
     var scope: String
     var aud: AudienceClaim
     
-    static var expirationClaim: ExpirationClaim {
-        return ExpirationClaim(value: FCMDate.now.addingTimeInterval(3600))
-    }
-
-    init(iss: String, sub: String, scope: String, aud: String) {
+    init(iss: IssuerClaim, sub: SubjectClaim, scope: String, aud: AudienceClaim, iat: FCMDate = .now) {
         self.uid = FCMUUID().uuidString
-        self.exp = GAuthPayload.expirationClaim
-        self.iat = IssuedAtClaim(value: .now)
-        self.iss = IssuerClaim(value: iss)
-        self.sub = SubjectClaim(value: sub)
-        self.scope = scope
-        self.aud = AudienceClaim(value: aud)
-    }
-    
-    private init(iss: IssuerClaim, sub: SubjectClaim, scope: String, aud: AudienceClaim) {
-        self.uid = FCMUUID().uuidString
-        self.exp = GAuthPayload.expirationClaim
-        self.iat = IssuedAtClaim(value: .now)
+        self.exp = ExpirationClaim(value: iat.addingTimeInterval(3600))
+        self.iat = IssuedAtClaim(value: iat)
         self.iss = iss
         self.sub = sub
         self.scope = scope
@@ -47,7 +33,7 @@ struct GAuthPayload: JWTPayload {
         }
     }
 
-    func updated() -> Self {
-        GAuthPayload(iss: iss, sub: sub, scope: scope, aud: aud)
+    func updated(iat: FCMDate = .now) -> Self {
+        GAuthPayload(iss: iss, sub: sub, scope: scope, aud: aud, iat: iat)
     }
 }
