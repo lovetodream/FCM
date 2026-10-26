@@ -9,9 +9,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.86.0"),
-        .package(url: "https://github.com/vapor/jwt-kit.git", from: "5.1.2"),
+        .package(url: "https://github.com/vapor/jwt-kit.git", branch: "main"),
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.27.0"),
         .package(url: "https://github.com/apple/swift-http-types.git", from: "1.4.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.2.1"),
     ],
     targets: [
         .target(name: "FCM", dependencies: [
@@ -21,6 +22,7 @@ let package = Package(
             .product(name: "JWTKit", package: "jwt-kit"),
             .product(name: "AsyncHTTPClient", package: "async-http-client"),
             .product(name: "HTTPTypes", package: "swift-http-types"),
+            .product(name: "Algorithms", package: "swift-algorithms")
         ]),
         .testTarget(name: "FCMTests", dependencies: [
             .target(name: "FCM"),
